@@ -140,13 +140,29 @@
   :config
   (add-hook 'lsp-mode-hook 'lsp-ui-mode))
 
+;; accept completion from copilot and fallback to company
 (use-package! copilot
   :hook (prog-mode . copilot-mode)
-  :bind (("C-TAB" . 'copilot-accept-completion-by-word)
-         ("C-<tab>" . 'copilot-accept-completion-by-word)
-         :map copilot-completion-map
-         ("<tab>" . 'copilot-accept-completion)
-         ("TAB" . 'copilot-accept-completion)))
+  :bind (:map copilot-completion-map
+              ("<tab>" . 'copilot-accept-completion)
+              ("TAB" . 'copilot-accept-completion)
+              ("C-TAB" . 'copilot-accept-completion-by-word)
+              ("C-<tab>" . 'copilot-accept-completion-by-word)))
+
+(after! (evil copilot)
+  ;; Define the custom function that either accepts the completion or does the default behavior
+  (defun my/copilot-tab-or-default ()
+    (interactive)
+    (if (and (bound-and-true-p copilot-mode)
+             ;; Add any other conditions to check for active copilot suggestions if necessary
+             )
+        (copilot-accept-completion)
+      (evil-insert 1))) ; Default action to insert a tab. Adjust as needed.
+
+  (setq copilot-log-max 1000)
+
+  ;; Bind the custom function to <tab> in Evil's insert state
+  (evil-define-key 'insert 'global (kbd "<tab>") 'my/copilot-tab-or-default))
 
 (defun setup-tide-mode ()
   (interactive)
@@ -223,8 +239,8 @@
                   :server-id 'pylsp))
 
 (with-eval-after-load "lsp-mode"
-    (add-to-list 'lsp-disabled-clients 'pyls)
-    (add-to-list 'lsp-enabled-clients 'pylsp ))
+  (add-to-list 'lsp-disabled-clients 'pyls)
+  (add-to-list 'lsp-enabled-clients 'pylsp ))
 
 (setq-default tab-width 2)
 (setq-default indent-tabs-mode nil)
@@ -234,8 +250,43 @@
           (lambda ()
             (setq typescript-indent-level 2)))
 
-(require 'prettier-rc)
-
 (add-hook 'typescript-mode-hook 'prettier-rc-mode)
 (add-hook 'js2-mode-hook 'prettier-rc-mode)
 (add-hook 'web-mode-hook 'prettier-rc-mode)
+
+
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(package-selected-packages
+   '(company lsp-ui lsp-mode typescript-mode vterm docker-tramp uwu-theme spacemacs-theme)))
+
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
+
+;; Set Fantasque Sans Mono as the default font at size 12
+(set-face-attribute 'default nil
+                    :family "Hack Nerd Font"
+                    :height 105)
+
+;; Enable anti-aliasing for better font rendering
+(setq-default frame-resize-pixelwise t)
+(setq-default face-font-rescale-alist '(("Hack Nerd Font" . 1.0)))
+
+;; Optional: Configure line spacing to your preference
+(setq-default line-spacing 0.1)
+
+;; Optional: Set the default window frame size
+(setq default-frame-alist
+      '((width . 80)   ; Set the desired width
+        (height . 40))) ; Set the desired height
+
+(use-package! chatgpt
+  :defer t
+  :bind ("C-c q" . chatgpt-query))
