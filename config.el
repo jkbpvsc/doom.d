@@ -33,7 +33,7 @@
 ;; There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
 ;; `load-theme' function. This is the default:
-(setq doom-theme 'doom-horizon)
+(setq doom-theme 'doom-one)
 
 ;; This determines the style of line numbers in effect. If set to `nil', line
 ;; numbers are disabled. For relative line numbers, set this to `relative'.
@@ -122,8 +122,8 @@
   (lsp-rust-analyzer-server-display-inlay-hints t)
   ;; (lsp-rust-analyzer-display-lifetime-elision-hints-enable "skip_trivial")
   ;; (lsp-rust-analyzer-display-chaining-hints t)
-  ;; (lsp-rust-analyzer-display-lifetime-elision-hints-use-parameter-names t)
-  ;; (lsp-rust-analyzer-display-closure-return-type-hints t)
+  (lsp-rust-analyzer-display-lifetime-elision-hints-use-parameter-names t)
+  (lsp-rust-analyzer-display-closure-return-type-hints t)
   (lsp-rust-analyzer-display-parameter-hints t)
   ;; (lsp-rust-analyzer-display-reborrow-hints t)
 
@@ -136,21 +136,28 @@
   :config
   (add-hook 'lsp-mode-hook 'lsp-ui-mode))
 
+(require 'tramp)
+(add-to-list 'tramp-remote-path 'tramp-own-remote-path)
+(add-to-list 'tramp-remote-path "/root/.local/bin")
+
 (with-eval-after-load "lsp-rust"
+
   (lsp-register-client
    (make-lsp-client
-    :new-connection (lsp-tramp-connection "rust-analyzer")
-    :remote? t
+    :new-connection (lsp-tramp-connection "/root/.local/bin/rust-analyzer")
     :major-modes '(rust-mode rustic-mode)
+    :priority (if (eq lsp-rust-server 'rust-analyzer) 1 -1)
+    :remote? t
     :initialization-options 'lsp-rust-analyzer--make-init-options
     :notification-handlers (ht<-alist lsp-rust-notification-handlers)
-    :action-handlers (ht ("rust-analyzer.runSingle" #'lsp-rust--analyzer-run-single))
-    :library-folders-fn (lambda (_workspace) lsp-rust-analyzer-library-directories)
-    :after-open-fn (lambda ()
-                     (when lsp-rust-analyzer-server-display-inlay-hints
-                       (lsp-rust-analyzer-inlay-hints-mode)))
+    :action-handlers (ht<-alist lsp-rust-action-handlers)
+    :library-folders-fn (lambda (_workspace) lsp-rust-library-directories)
     :ignore-messages nil
-    :server-id 'rust-analyzer-remote)))
+    :server-id 'rust-analyzer-remote
+    :environment-fn (lambda () (list (cons "CARGO_HOME"  (concat (getenv "HOME") "/.cargo"))
+                                     (cons "RUSTUP_HOME" (concat (getenv "HOME") "/.cargo/rustup"))))
+    ))
+  )
 
 (defun start-file-process-shell-command@around (start-file-process-shell-command name buffer &rest args)
   "Start a program in a subprocess.  Return the process object for it. Similar to `start-process-shell-command', but calls `start-file-process'."
@@ -173,11 +180,24 @@
 ;; accept completion from copilot and fallback to company
 (use-package! copilot
   :hook (prog-mode . copilot-mode)
-  :bind (("C-TAB" . 'copilot-accept-completion-by-word)
-         ("C-<tab>" . 'copilot-accept-completion-by-word)
-         :map copilot-completion-map
-         ("<tab>" . 'copilot-accept-completion)
-         ("TAB" . 'copilot-accept-completion)))
+  :bind (:map copilot-completion-map
+              ("<tab>" . 'copilot-accept-completion)
+              ("TAB" . 'copilot-accept-completion)
+              ("C-TAB" . 'copilot-accept-completion-by-word)
+              ("C-<tab>" . 'copilot-accept-completion-by-word)))
+
+(after! (evil copilot)
+  ;; Define the custom function that either accepts the completion or does the default behavior
+  (defun my/copilot-tab-or-default ()
+    (interactive)
+    (if (and (bound-and-true-p copilot-mode)
+             ;; Add any other conditions to check for active copilot suggestions if necessary
+             )
+        (copilot-accept-completion)
+      (evil-insert 1))) ; Default action to insert a tab. Adjust as needed.
+
+  ;; Bind the custom function to <tab> in Evil's insert state
+  (evil-define-key 'insert 'global (kbd "<tab>") 'my/copilot-tab-or-default))
 
 (defun setup-tide-mode ()
   (interactive)
@@ -208,6 +228,3 @@
           (lambda (arg) (call-interactively #'dap-hydra)))
 
 (setq word-wrap t)
-
-;; (if (not (display-graphic-p))
-    ;; (add-to-list 'default-frame-alist '(background-color . nil)))
