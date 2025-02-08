@@ -55,6 +55,9 @@
   :recipe (:host github :repo "zerolfx/copilot.el" :files ("*.el" "dist")))
 (package! spacemacs-theme)
 (package! docker-tramp)
+(package! company-box)
 
 (package! chatgpt
   :recipe (:host github :repo "joshcho/ChatGPT.el" :files ("dist" "*.el")))
+
+(package! dap-mode)
